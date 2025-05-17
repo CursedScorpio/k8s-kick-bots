@@ -1,0 +1,114 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: viewer-box-deployment
+  namespace: kick-watchers
+  labels:
+    app: kick-watchers
+    component: viewer-box
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: kick-watchers
+      component: viewer-box
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  template:
+    metadata:
+      labels:
+        app: kick-watchers
+        component: viewer-box
+    spec:
+      initContainers:
+      - name: setup-vpn-auth
+        image: busybox
+        command: 
+        - sh
+        - -c
+        - "mkdir -p /mnt/etc/openvpn && cp /mnt/vpn-auth/auth.txt /mnt/etc/openvpn/ && chmod 600 /mnt/etc/openvpn/auth.txt && echo 'VPN auth file prepared'"
+        volumeMounts:
+        - name: vpn-auth
+          mountPath: /mnt/vpn-auth
+        - name: etc-openvpn
+          mountPath: /mnt/etc/openvpn
+      containers:
+      - name: viewer-box
+        image: cursedscropio/viewer-box:latest
+        imagePullPolicy: Always
+        env:
+        - name: BOX_NAME
+          value: "box-1"
+        - name: NUM_BROWSERS
+          value: "1"
+        - name: CONTEXTS_PER_BROWSER
+          value: "2" 
+        - name: TABS_PER_CONTEXT
+          value: "1"
+        - name: STREAM_URL
+          value: "https://kick.com/abdelbare0"
+        - name: VPN_CONFIG
+          value: "be169"
+        - name: FINGERPRINT_SERVICE
+          value: "http://10.108.176.229:3001"
+        ports:
+        - containerPort: 3000
+          name: http
+        resources:
+          requests:
+            memory: "3Gi"
+            cpu: "1000m"
+          limits:
+            memory: "6Gi" 
+            cpu: "2000m"
+        securityContext:
+          privileged: true
+        volumeMounts:
+        - name: screenshots
+          mountPath: /screenshots
+        - name: vpn-configs
+          mountPath: /vpn
+        - name: etc-openvpn
+          mountPath: /etc/openvpn
+        - name: logs
+          mountPath: /logs
+# Removed health probes since VPN setup locks access and causes false failures
+      volumes:
+      - name: screenshots
+        hostPath:
+          path: /home/streamv4/screenshots
+          type: DirectoryOrCreate
+      - name: logs
+        hostPath:
+          path: /home/streamv4/logs
+          type: DirectoryOrCreate
+      - name: vpn-configs
+        configMap:
+          name: vpn-configs
+      - name: vpn-auth
+        configMap:
+          name: vpn-auth-config
+      - name: etc-openvpn
+        emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: viewer-box-service
+  namespace: kick-watchers
+  labels:
+    app: kick-watchers
+    component: viewer-box
+spec:
+  ports:
+  - name: http
+    port: 3000
+    targetPort: 3000
+    protocol: TCP
+  selector:
+    app: kick-watchers
+    component: viewer-box
+  type: ClusterIP 

@@ -1,0 +1,69 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: kick-viewer-box-1  # Change this for each new box
+  namespace: kick-watchers
+spec:
+  containers:
+  - name: viewer-box
+    image: cursedscropio/viewer-box:latest
+    imagePullPolicy: IfNotPresent
+    env:
+    - name: BOX_NAME
+      value: "box-1"  # Change this for each new box
+    - name: NUM_BROWSERS
+      value: "4"  # Adjust as needed
+    - name: CONTEXTS_PER_BROWSER
+      value: "4"  # Adjust as needed
+    - name: TABS_PER_CONTEXT
+      value: "4"  # Adjust as needed
+    - name: STREAM_URL
+      value: "https://kick.com/ngbmannie556"  # Change to the channel you want to watch
+    - name: VPN_CONFIG
+      value: "be169"  # Change to use different VPN configs or leave empty for no VPN
+    - name: FINGERPRINT_SERVICE
+      value: "http://fingerprint-service:3001"
+    ports:
+    - containerPort: 3000
+      name: http
+    resources:
+      requests:
+        memory: "512Mi"
+        cpu: "500m"
+      limits:
+        memory: "1Gi"
+        cpu: "1000m"
+    securityContext:
+      privileged: true  # Required for OpenVPN
+    volumeMounts:
+    - name: screenshots
+      mountPath: /screenshots
+    - name: vpn-configs
+      mountPath: /vpn
+    - name: vpn-auth
+      mountPath: /etc/openvpn/auth.txt
+      subPath: auth.txt
+    - name: logs
+      mountPath: /logs
+    livenessProbe:
+      httpGet:
+        path: /healthz
+        port: 3000
+      initialDelaySeconds: 60
+      periodSeconds: 30
+  volumes:
+  - name: screenshots
+    hostPath:
+      path: /home/streamv4/screenshots
+      type: DirectoryOrCreate
+  - name: logs
+    hostPath:
+      path: /home/streamv4/logs
+      type: DirectoryOrCreate
+  - name: vpn-configs
+    configMap:
+      name: vpn-configs
+  - name: vpn-auth
+    hostPath:
+      path: /home/watchers/vpn/auth.txt
+      type: File
