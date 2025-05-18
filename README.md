@@ -8,14 +8,36 @@ This project sets up a scalable system for running multiple browser instances to
 
 ---
 
-## ✨ What It Does
+## 📚 Table of Contents
 
-Put simply, this system lets you:
+- [✨ Here's a basic flow](#-heres-a-basic-flow)
+- [🛠️ Core Components](#️-core-components)
+  - [🧬 Fingerprint Service](#-fingerprint-service)
+  - [📺 Viewer Box](#-viewer-box)
+- [🏁 Getting Started](#-getting-started)
+  - [VPN Setup](#vpn-setup)
+  - [🐳 Build the Docker Images](#-build-the-docker-images)
+  - [🚀 Deploy the Services](#-deploy-the-services)
+- [⚙️ Configuration](#-configuration)
+  - [Python Deployment Script (`deploy_viewers.py`)](#python-deployment-script-deploy_viewerspy)
+  - [Editing YAML Files](#editing-yaml-files)
+- [How It Works](#how-it-works)
+- [🩺 Troubleshooting](#-troubleshooting)
+- [📁 Folder Structure](#-folder-structure)
+- [📝  Notes](#-notes)
 
-- Launch multiple browser sessions that look like real users.
-- Route each browser through a different VPN location.
-- Easily scale the number of viewers using Kubernetes.
-- Automate the deployment and management process.
+## ✨ Here's a basic flow:
+
+1. The **fingerprint service** generates realistic browser fingerprints.
+2. Each **viewer pod** requests one (or many, depending on browsers and context) and starts Chromium instances.
+3. Browsers connect through their assigned **VPNs**.
+4. They navigate to the `STREAM_URL` and begin viewing.
+5. **Kubernetes** keeps everything running and balanced.
+
+Resource use depends on how many browsers you're running. As a rough estimate:
+
+- A pod of 32 Viewers is roughly **5GB RAM**. viewers number = browsers * context * tabs
+- A pod running 2 browsers × 8 contexts × 8 tabs = **128 virtual viewers**.
 
 It was originally built for Kick.com, but it can be adapted to **any streaming or content platform**—just change the target URL. (Some platforms have better anti-bot systems, so you might need to tweak Puppeteer behavior accordingly.)
 
