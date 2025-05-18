@@ -4,7 +4,7 @@ This project sets up a scalable system for running multiple browser instances to
 
 ---
 
-**Note:** I also have a version of this system that runs directly on a single machine, without Kubernetes. That version works similarly and achieves close performance, but comes with a clean frontend and better puppeteer behavior (it interact with kick, accepting cookings, changing quality stream and so on) but here I wanted to learn and experiment with Kubernetes features—like automatic pod restarts, resource limits, and scheduling. This repo is a result of that exploration.
+**Note:** I also have a version of this system that runs directly on a single machine, without Kubernetes. That version works similarly and achieves close performance, but comes with a clean frontend and better puppeteer behavior (it interact with kick, accepting cookings, changing quality stream and so on) but here I wanted to learn and experiment with Kubernetes features, like automatic pod restarts, resource limits, and scheduling. This repo is a result of that exploration.
 
 ---
 
@@ -21,7 +21,6 @@ This project sets up a scalable system for running multiple browser instances to
 - [⚙️ Configuration](#-configuration)
   - [Python Deployment Script (`deploy_viewers.py`)](#python-deployment-script-deploy_viewerspy)
   - [Editing YAML Files](#editing-yaml-files)
-- [How It Works](#how-it-works)
 - [🩺 Troubleshooting](#-troubleshooting)
 - [📁 Folder Structure](#-folder-structure)
 - [📝  Notes](#-notes)
@@ -137,8 +136,8 @@ python3 deploy_viewers.py --help
 Key flags:
 
 - `--stream-url`: Stream to watch (e.g., `https://kick.com/your_favorite_streamer`).
-- `--num-deployments`: Number of separate viewer deployments (e.g., for different VPNs).
-- `--replicas-per-deployment`: How many pods (viewers) per deployment.
+- `--num-deployments`: Number of separate viewer deployments (e.g., each deployment is routed through one VPN).
+- `--replicas-per-deployment`: How many pods (viewers) per deployment. (this is how many pods per deployments, so all pods also share same VPN, but each pod has own browser,context and tabs)
 - `--namespace`: Target Kubernetes namespace (default is `stream-viewers`).
 
 ### Editing YAML Files
@@ -154,21 +153,6 @@ Environment variables you can tweak in the `viewer-box-deployment.yaml`:
 - `CONTEXTS_PER_BROWSER`: Browser contexts per instance.
 - `TABS_PER_CONTEXT`: Tabs per context.
 - `STREAM_URL`: Where the browsers should go.
-
-## How It Works
-
-Here's a basic flow:
-
-1. The **fingerprint service** generates realistic browser fingerprints.
-2. Each **viewer pod** requests one (or many, depending on browsers and context) and starts Chromium instances.
-3. Browsers connect through their assigned **VPNs**.
-4. They navigate to the `STREAM_URL` and begin viewing.
-5. **Kubernetes** keeps everything running and balanced.
-
-Resource use depends on how many browsers you're running. As a rough estimate:
-
-- Each tab instance uses about **100MB RAM**.
-- A pod running 2 browsers × 8 contexts × 8 tabs ≈ **128 virtual viewers**.
 
 ## 🩺 Troubleshooting
 
