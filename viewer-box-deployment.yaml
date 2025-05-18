@@ -1,17 +1,17 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: viewer-box-deployment
-  namespace: kick-watchers
+  name: viewer-deployment
+  namespace: stream-viewers
   labels:
-    app: kick-watchers
-    component: viewer-box
+    app: stream-viewer
+    component: viewer
 spec:
-  replicas: 1
+  replicas: 3
   selector:
     matchLabels:
-      app: kick-watchers
-      component: viewer-box
+      app: stream-viewer
+      component: viewer
   strategy:
     type: RollingUpdate
     rollingUpdate:
@@ -20,9 +20,18 @@ spec:
   template:
     metadata:
       labels:
-        app: kick-watchers
-        component: viewer-box
+        app: stream-viewer
+        component: viewer
+      annotations:
+        memory.alpha.kubernetes.io/unbounded: "true"
     spec:
+      nodeSelector:
+        node-role.kubernetes.io/control-plane: "false"
+      tolerations:
+      - key: "node-role.kubernetes.io/control-plane"
+        operator: "Exists"
+        effect: "NoSchedule"
+      terminationGracePeriodSeconds: 3600  # Keeping high grace period as requested
       initContainers:
       - name: setup-vpn-auth
         image: busybox
@@ -35,35 +44,57 @@ spec:
           mountPath: /mnt/vpn-auth
         - name: etc-openvpn
           mountPath: /mnt/etc/openvpn
+      - name: setup-system
+        image: busybox
+        command: 
+        - sh
+        - -c
+        - "echo 'System optimization' && echo 3 > /proc/sys/vm/drop_caches && echo 1 > /proc/sys/vm/compact_memory || true"
+        securityContext:
+          privileged: true
+      - name: increase-system-limits
+        image: busybox
+        command:
+        - sh
+        - -c
+        - |
+          echo "Increasing system limits..."
+          ulimit -n 65535 || echo "Failed to set ulimit -n"
+          sysctl -w vm.max_map_count=262144 || echo "Failed to set vm.max_map_count"
+          echo "System limits updated."
+        securityContext:
+          privileged: true
       containers:
       - name: viewer-box
-        image: cursedscropio/viewer-box:latest
+        image: your-registry/viewer-box:latest
         imagePullPolicy: Always
         env:
         - name: BOX_NAME
           value: "box-1"
         - name: NUM_BROWSERS
-          value: "1"
+          value: "2"
         - name: CONTEXTS_PER_BROWSER
-          value: "2" 
+          value: "8" 
         - name: TABS_PER_CONTEXT
-          value: "1"
+          value: "8"
         - name: STREAM_URL
-          value: "https://kick.com/abdelbare0"
+          value: "https://kick.com/example_channel"
         - name: VPN_CONFIG
-          value: "be169"
+          value: "vpn1"
         - name: FINGERPRINT_SERVICE
-          value: "http://10.108.176.229:3001"
+          value: "http://fingerprint-service:3001"
+        - name: NODE_OPTIONS
+          value: "--max-old-space-size=16384"
         ports:
         - containerPort: 3000
           name: http
         resources:
           requests:
-            memory: "3Gi"
+            memory: "4Gi"
             cpu: "1000m"
           limits:
-            memory: "6Gi" 
-            cpu: "2000m"
+            memory: "16Gi" 
+            cpu: "4000m"
         securityContext:
           privileged: true
         volumeMounts:
@@ -75,15 +106,47 @@ spec:
           mountPath: /etc/openvpn
         - name: logs
           mountPath: /logs
-# Removed health probes since VPN setup locks access and causes false failures
+        - name: shm-volume 
+          mountPath: /dev/shm
+        - name: tmp-volume
+          mountPath: /tmp
+        lifecycle:
+          preStop:
+            exec:
+              command: 
+              - /bin/sh
+              - -c
+              - |
+                echo "Starting graceful shutdown..."
+                # Kill Chrome/Chromium processes first
+                for pid in $(pgrep -f "chrome|chromium"); do
+                  kill -TERM $pid 2>/dev/null || true
+                done
+                sleep 2
+                # Kill any remaining Chrome/Chromium processes
+                for pid in $(pgrep -f "chrome|chromium"); do
+                  kill -KILL $pid 2>/dev/null || true
+                done
+                # Kill OpenVPN processes
+                for pid in $(pgrep -f "openvpn"); do
+                  kill -TERM $pid 2>/dev/null || true
+                done
+                sleep 2
+                # Kill any remaining OpenVPN processes
+                for pid in $(pgrep -f "openvpn"); do
+                  kill -KILL $pid 2>/dev/null || true
+                done
+                # Clean up any remaining processes
+                pkill -KILL -f "chrome|chromium|openvpn" 2>/dev/null || true
+                echo "Shutdown complete"
       volumes:
       - name: screenshots
         hostPath:
-          path: /home/streamv4/screenshots
+          path: /path/to/screenshots
           type: DirectoryOrCreate
       - name: logs
         hostPath:
-          path: /home/streamv4/logs
+          path: /path/to/logs
           type: DirectoryOrCreate
       - name: vpn-configs
         configMap:
@@ -93,15 +156,23 @@ spec:
           name: vpn-auth-config
       - name: etc-openvpn
         emptyDir: {}
+      - name: shm-volume
+        emptyDir:
+          medium: Memory
+          sizeLimit: 12Gi
+      - name: tmp-volume
+        emptyDir:
+          medium: Memory
+          sizeLimit: 4Gi
 ---
 apiVersion: v1
 kind: Service
 metadata:
-  name: viewer-box-service
-  namespace: kick-watchers
+  name: viewer-service
+  namespace: stream-viewers
   labels:
-    app: kick-watchers
-    component: viewer-box
+    app: stream-viewer
+    component: viewer
 spec:
   ports:
   - name: http
@@ -109,6 +180,6 @@ spec:
     targetPort: 3000
     protocol: TCP
   selector:
-    app: kick-watchers
-    component: viewer-box
-  type: ClusterIP 
+    app: stream-viewer
+    component: viewer
+  type: ClusterIP

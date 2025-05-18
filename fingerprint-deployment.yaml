@@ -2,15 +2,15 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: fingerprint-service
-  namespace: kick-watchers
+  namespace: stream-viewers
   labels:
-    app: kick-watchers
+    app: stream-viewer
     component: fingerprint-service
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: kick-watchers
+      app: stream-viewer
       component: fingerprint-service
   strategy:
     type: RollingUpdate
@@ -20,12 +20,12 @@ spec:
   template:
     metadata:
       labels:
-        app: kick-watchers
+        app: stream-viewer
         component: fingerprint-service
     spec:
       containers:
       - name: fingerprint-service
-        image: cursedscropio/fingerprint-service:latest
+        image: your-registry/fingerprint-service:latest
         imagePullPolicy: Always
         ports:
         - name: http
@@ -80,9 +80,9 @@ apiVersion: v1
 kind: Service
 metadata:
   name: fingerprint-service
-  namespace: kick-watchers
+  namespace: stream-viewers
   labels:
-    app: kick-watchers
+    app: stream-viewer
     component: fingerprint-service
 spec:
   ports:
@@ -91,7 +91,7 @@ spec:
     targetPort: 3001
     protocol: TCP
   selector:
-    app: kick-watchers
+    app: stream-viewer
     component: fingerprint-service
   type: ClusterIP
 ---
@@ -99,9 +99,9 @@ apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler
 metadata:
   name: fingerprint-service
-  namespace: kick-watchers
+  namespace: stream-viewers
   labels:
-    app: kick-watchers
+    app: stream-viewer
     component: fingerprint-service
 spec:
   scaleTargetRef:

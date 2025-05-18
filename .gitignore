@@ -1,0 +1,43 @@
+# Ignore VPN configuration files
+vpn/
+vpn-*.yaml
+*vpn*.yaml
+vpn-configuration.yaml
+vpn-test-pod.yaml
+
+# Ignore test files
+*test*.yaml
+*test*.sh
+final-fix.yaml
+
+# Ignore node modules
+*/node_modules/
+node_modules/
+
+# Ignore logs
+*.log
+logs/
+
+# Ignore environment-specific configs
+.env
+.env.*
+
+# Ignore build artifacts
+*/dist/
+dist/
+
+# Ignore OS generated files
+.DS_Store
+Thumbs.db
+
+# Ignore IDE files
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Ignore test screenshots
+screenshots/ 
+
+# Project showcase (for website use only)
+PROJECT_SHOWCASE.md
